@@ -1,0 +1,182 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage[ruled,linesnumbered,titlenumbered]{algorithm2e}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\usepackage{amsmath,amsfonts,amssymb,amsthm,epsfig,epstopdf,titling,url,array}
+
+
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem*{cor}{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\newtheorem{conj}{Conjecture}[section]
+\newtheorem{exmp}{Example}[section]
+
+\begin{document}
+\title{A Summary of Optimization for Optimal Transport and Barycenter Problem}
+\author{Boyang Liu}
+\maketitle
+
+\section{Regularized Discrete Optimal Transport}
+This section covers original optimal tranpsort (OT), entropy regularization, and sinkhorn algorithms.
+\subsection{Original Discrete Optimal Transport}
+Discrete OT problem defines the transport from source $p$ to target $q$ as follows:
+\begin{align}
+	&\argmin_{\mathbf{T}}<\mathbf{C},\mathbf{T}> \nonumber\\
+	&s.t.  \hspace{1mm} \mathbf{T}\mathbf{1} = p \nonumber\\
+	&s.t.  \hspace{1mm} \mathbf{T}^{T}\mathbf{1} = q, \label{originalOT}
+\end{align}
+where $\mathbf{T} \in \mathbb{R}^{n_{s} \times n_{t}}$ is the transportation plan, $\mathbf{C} \in \mathbb{R}^{n_{s} \times n_{t}}$ is pre-known the cost matrix. $p \in \mathbb{R}^{n_{s} \times 1}$ is the distribution of source while $q \in \mathbb{R}^{n_{t} \times 1}$ is the distribution of target. 
+
+\begin{defn}[Wasserstein distance]
+Wasserstein distance between two distribution $p$ and $q$ is $W(p,q)$ and it is defined as $W(p,q) = <C, T^{*}>$, where $T^{*}$ is the solution of Eq. \ref{originalOT}.
+\label{defnWas}
+\end{defn}
+
+The wasserstein distance (WD) is a measurement of the similarity of two distribution. From above, we can see solving WD is a linear programming problem (network flow). The solver for this LP programming needs $\mathbf{O}(n^{3}\log n)$ complexity to solve. Noting this original OT problem cannot guarantee a stable optimal result, since the objective is not strong convex.
+
+\section{Entropy Regularized Optimal Transport}
+The entropy regularized optimal transport is defined as follows:
+\begin{align}
+	&\argmin_{\mathbf{T}}<\mathbf{C},\mathbf{T}> + \gamma \sum_{i,j}T_{i,j}\log T_{i,j} \nonumber\\
+	&s.t.  \hspace{1mm} \mathbf{T}\mathbf{1} = p \nonumber\\
+	&s.t.  \hspace{1mm} \mathbf{T}^{T}\mathbf{1} = q, \label{RelaxedOT}
+\end{align}
+The regularization has the entropy form, which is called negative entropy regularization. This regularization will make the objective function with strong convexity.
+
+\begin{defn}[Entropy relaxed Wasserstein distance]
+Entropy relaxed wasserstein distance between two distribution $p$ and $q$ is $W_{\gamma}(p,q)$ and it is defined as $W_{\gamma}(p,q) = <C, T^{*}> + \gamma \sum_{i,j}T^{*}_{i,j}\log T^{*}_{i,j}$, where $T^{*}$ is the solution of Eq. \ref{RelaxedOT}.
+\label{defnRelaxWas}
+\end{defn}
+The relaxed WD can be solved efficiently by using the sinkhorn algorithms.
+
+\section{Sinkhorn Algorithms for Entropy Relaxed OT}
+Introducing two lagrange multiplier of $\alpha \in \mathbb{R}^{n_{i} \times 1}$and $\beta \in \mathbb{R}^{n_{j} \times 1}$, we have the dual objective:
+\begin{align}
+&\max_{\alpha,\beta}\min_{T}<C,T> \mathcal{L}(T,\alpha, \beta) \nonumber\\
+& = \max_{\alpha,\beta}\min_{T}<C,T> + \gamma<T,logT> + \alpha^{T}(p-T\mathbf{1}) + \beta^{T}(q-T^{T}\mathbf{1}) \label{Lagrange}
+\end{align}
+Take the derivative of Eq. \ref{Lagrange} respect to T and set it to zero, we have:
+\begin{align}
+&\nabla_{T_{i,j}}\mathcal{L}(\alpha,\beta,T) = C_{i,j} + \gamma + \gamma \log T_{i,j} - \alpha_{i} - \beta_{j} = 0 \nonumber\\
+&\log T_{i,j} = \dfrac{\alpha_{i} + \beta_{j} - C_{i,j} - \gamma}{\gamma} \nonumber\\
+& T_{i,j} = e^{(\alpha_{i}-\gamma)/\gamma} e^{\beta_{j} / \gamma} e^{-C_{i,j}/\gamma} \label{dual}
+\end{align}
+Reform Eq. \ref{dual}, let $u_{i} = e^{(\alpha_{i}-\gamma)/\gamma}$, $K_{i,j} = e^{-C_{i,j}/\gamma}$, $v_{j} = e^{\beta_{j} / \gamma}$, we have:
+\begin{align}
+&T = diag(u)K diag(v) \label{KKT}
+\end{align}
+Recalling we have constrain $T\mathbf{1} = p$ and $T^{T}\mathbf{1} = q$, we have: 
+\begin{align}
+&diag(u)K diag(v) \mathbf{1} = p \\
+&(diag(u)K diag(v))^{T} \mathbf{1} = q \\
+\end{align}
+solve above equations, we have
+\begin{align}
+&u \otimes Kv = p\\
+&v \otimes K^{T}u = q \label{sinkhorn}
+\end{align}
+Now, we can have the update iterations as follows:
+\begin{align}
+&u^{k+1} \leftarrow p/ Kv^{k}\\
+&v^{k+1} \leftarrow q/ K^{T}u^{k+1}
+\end{align}
+After $u$ and $v$ converging, the T can be computed using Eq. \ref{KKT}
+Noting this iterations only involves matrix-vector multiplication and pointwise divide, which is extremely efficient compared with the original OT.
+
+\section{The Relationship of Regularized OT and Bregman Projection}
+Considering the entropy relaxed OT for Eq. \ref{RelaxedOT}, we have:
+\begin{align}
+&<C,T> + \gamma <T,\log T> \nonumber\\
+&= \sum_{i,j}T_{i,j}C_{i,j} + \gamma T_{i,j}\log T_{i,j} \nonumber\\
+&= \gamma \sum_{i,j}T_{i,j} \log(T_{i,j}e^{\dfrac{C_{i,j}}{\gamma}}) \nonumber\\
+&= \gamma \sum_{i,j}T_{i,j} \log \dfrac{T_{i,j}}{e^{\dfrac{-C_{i,j}}{\gamma}}} \nonumber\\
+&= \gamma \mathbf{KL}(T||e^{\dfrac{C}{\gamma}})\\ \label{KL}
+&s.t. \hspace{1mm} T\mathbf{1} = p, T^{T} \mathbf{1} = q 
+\end{align}
+
+From Eq. \ref{KL}, we know the optimal value is $e^{\dfrac{C}{\gamma}}$. In order to get the optimal solution in feasible set, we iteratively project this optimal solution to the polytope of constrains, which can be proved by non-expansive properties.
+
+\subsection{The projection opretors}
+The polytope of constrain is defined as:
+\begin{align}
+&\mathcal{C}_{1}: {T \in \mathbb{R}_{+}^{n_{i} \times n_{j}}}; T\mathbf{1} = p \nonumber \\
+&\mathcal{C}_{2}: {T \in \mathbb{R}_{+}^{n_{i} \times n_{j}}}; T^{T}\mathbf{1} = q \label{polytope}
+\end{align}
+
+The projection two these two polytopes are as follows:
+\begin{align}
+&P_{C_{1}}^{KL}(T) = diag(p/ T\mathbf{1}) T\\
+&P_{C_{2}}^{KL}(T) = T diag(q / T^{T}\mathbf{1}) \label{projector}
+\end{align}
+This projection is equivalent to the sinkhorn iterations. This part gives a bridge between bregman projection and sinkhorn algorithms.
+\section{Wasserstein Barycenter Problem}
+Wasserstein barycenter problem (WBP) is a interpolation method between serveral probability distribution. Given a normalized weights $\lambda \in \mathbb{R}^{K \times 1}$, the WBP is defined as the optimization problem as follows:
+\begin{align}
+&\min_{q\in \mathbb{R}^{n_{j} \times 1}}\left(\sum_{k}^{K}\lambda_{k}W_{\gamma}(p_{k},q)\right)\\
+&s.t. T_{k}\mathbf{1} = p,T_{k}^{T}\mathbf{1} = q, \forall k = 1,...,K
+\end{align}
+
+The feasible set of two polytopes can be defined as follows:
+\begin{align}
+&\mathcal{C}_{1}: {T_{k} \in \mathbb{R}_{+}^{n_{i} \times n_{j}}}; \forall k, \hspace{2mm}T_{k}\mathbf{1} = p_{k};  \\
+&\mathcal{C}_{2}: {T_{k} \in \mathbb{R}_{+}^{n_{i} \times n_{j}}}; \forall k, \exists q, \hspace{2mm} T_{k}^{T}\mathbf{1} = q \label{WBPpolytope}
+\end{align}
+The WBP problem can be changed as follows:
+\begin{align}
+\min_{T_{k},q} \left(\sum_{k=1}^{K}\lambda_{k}\mathbf{KL}(T_{k}||\xi_{k})\right), T_{k} \in C_{1} \bigcap C_{2}
+\end{align}
+where $\forall k$, $\xi_{k} \coloneqq \xi \coloneqq e^{-\dfrac{C}{\gamma}}$.
+Since the constrains are all convex polytope, we can also use bregman projection to solve this problem.
+
+The projector to polytope $\mathcal{C}_{1}$ is the same as the relaxed OT projector to marginal distribution p.
+
+The projector to polytope $\mathcal{C}_{2}$ hard to solve since we do not know what is the distribution $q$. If we know the distribution $q$, the projector will be same as the relaxed OT projector.
+
+The projector to the polytope $\mathcal{C}_{2}$ is defined as:
+\begin{align}
+P(T_{k}) = diag(\dfrac{q}{T_{k}\mathbf{1}})T_{k}, \label{WBPprojector}
+\end{align}
+where 
+\begin{align}
+q = \prod_{k=1}^{K}(T_{k}\mathbf{1})^{\lambda^{k}} \label{geometricmean}
+\end{align}
+
+The Eq. \ref{projector} is just normalized to the marginal distribution $q$. The Eq. ref{geometricmean} is the geometric mean of the projection result to multiple marginal distribution $p_{k}$. The proof is as follows:
+
+Introducing the lagrange multiplier for $\mathcal{C}_{2}$, for $T_{k}$, we have
+\begin{align}
+\mathcal{L}(\alpha_{k}^{T},T_{k},q) = \mathbf{KL}(T_{k}^{s+1}||T_{k}^{s}) + \alpha_{k}^{T}(q-(T_{k}^{s})^{T}\mathbf{1})
+\end{align}
+Take the derivative of $q$ and $T_{k}$, we have:
+\begin{align}
+&\nabla_{T_{k}} \mathcal{L}(\alpha_{k}^{T},T_{k},q) = \lambda_{k}\log(\dfrac{T_{K}^{S+1}}{T_{K}}) + \alpha_{k}\mathbf{1}^{T} = 0, \hspace{1mm} \forall k\\ 
+&\nabla_{q} \mathcal{L}(\alpha_{k}^{T},T_{k},q) = \sum_{k}\alpha_{k} = 0 \label{firstorder}
+\end{align}
+
+% Recalling we have $T_{k+1}^{T}\mathbf{1} = q$, we have
+% \begin{align}
+% &\lambda_{k}\log(T_{k}^{s+1})-\lambda_{k}\log {T_{k}} + \alpha_{k}{}\mathbf{1^{T}} = 0 \nonumber \\
+% &T_{k}^{s+1} = \exp \left( \log T_{k} -\alpha_{k}1^{T}/\lambda_{k}\right)\\
+% &T_{k}^{s+1} = \dfrac{\exp \left(\log T_{k}\right)}{\exp \left((\alpha_{k}\mathbf{1}^{T})^{\dfrac{1}{\lambda_{k}}}\right)} \nonumber\\
+% \end{align} 
+% $\forall k$, we have:
+% \begin{align}
+% &\prod_{k}{T_{k}^{s+1}} = \dfrac{\prod_{k} T_{k}}{\prod_{k}\exp\left(\dfrac{\alpha_{k}\mathbf{1}^{T}}{\lambda_{k}}\right)}\\
+% &\prod_{k}T_{k}^{s+1} = \prod_{k}T_{k} \exp\left( \right)
+% \end{align}
+
+Recalling we have $T_{k+1}^{T}\mathbf{1} = q$, we can solve the equations and get the result in Eq. \ref{projector}, \ref{geometricmean}.
+
+
+
+\end{document}
