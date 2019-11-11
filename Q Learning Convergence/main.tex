@@ -1,0 +1,220 @@
+\documentclass[a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{algorithmicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,epsfig,epstopdf,titling,url,array}
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\newtheorem{theo}{Theorem}[section]
+\newtheorem{conj}{Conjecture}[section]
+\newtheorem{exmp}{Example}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{property}{Property}[section]
+\usepackage{hyperref}
+
+\title{Convergence of Q-learning in Tabular Cases}
+\author{Boyang Liu}
+\providecommand{\keywords}[1]{\textbf{\textit{keywords: }} #1}
+\date{\today}
+\begin{document}
+\maketitle
+
+\abstract{The basic Q-learning concept is assumed to be known for readers. This is a self-contained proof (except Q-learning) of Q-learning convergence in tabular case.}
+
+\keywords{Cauchy sequence, Banach Fixed Point Theorem, Bellman Update}
+
+\section{Cauchy Sequence}
+We first introduce the definition of Cauchy sequence.
+
+\begin{defn}[Cauchy Sequence]
+Given a metric space $(\mathcal{X}, d)$, We say that a sequence of real numbers ${x_n}$ is a \textit{Cauchy sequence} provided
+that for every $\epsilon > 0$, there is a natural number $N$ so that when $n, m \geq N$, we have that $|x_n - x_m|\leq \epsilon$
+\end{defn}
+
+\begin{theo}
+For real number sequence, a sequence converges if and only if the sequence is Cauchy.
+\end{theo}
+
+We omit the proof since it is easy and intuitive. A proof of above theorem can be found in \href{http://math.caltech.edu/~nets/lecture4.pdf}{here}.
+
+A metric space $(\mathcal{X}, d)$ is called complete if every cauchy sequence converges to an element of $\mathcal{X}$.
+
+An counter example would be rational numbers. The rational numbers $\mathcal{Q}$ are not complete since the sequence of rational numbers could converge to irrational number.
+
+In Q-learning, we are dealing with real number, and real number is a complete metric space (proof omitted). Thus, we can full utilize the properties of complete metric space.
+\section{Banach Fixed Point Theorem}
+Banach fixed point theorem is also known as $\textit{contraction mapping theorem}$ or $\textit{contractive mapping theorem}$. It plays the central role in Q learning. We will first introduce the theorem and the definition of contradiction mapping.
+
+\begin{defn}[Contradiction Mapping]
+Let $(\mathcal{X}, d)$ to be a metric space, a function $f: \mathcal{X} \rightarrow \mathcal{X}$ is called a contraction if there exists $\lambda \in (0,1)$ such that
+\begin{align*}
+d(fx, fx^{'}) \leq \lambda d(x, x^{'}) \hspace{1cm} \forall x, x^{'} \in \mathcal{X}
+\end{align*}
+\end{defn}
+Clearly, the contradiction function is continuous since the smallest $\lambda$ is Lipschitz constant of $f$. 
+
+\begin{theo}[Banach Fixed Point Theorem]
+Let $(\mathcal{X}, d)$ be a non-empty complete metric space with a contraction mapping $f: \mathcal{X} \rightarrow \mathcal{X}$. Then $f$ admits a unique fixed point $x^{*}$ in $\mathcal{X}$ (i.e. $f(x^{*}) = x^{*}$). Furthermore, $x^*$ can be found as follows: start with an arbitrary element $x_0$ in $\mathcal{X}$, and define a sequence ${x_n}$ by $x_n = f(x_{n-1})$, then $x_n \rightarrow x^{*}$
+\end{theo}
+
+\begin{proof}
+we first prove the uniqueness of the fixed point by contradiction.
+
+If we have two fixed point $f(p)=p$ and $f(q) = q$, then
+\begin{align*}
+d(p,q) = d(fp, fq) \leq \lambda d(p, q),
+\end{align*}
+which is a contradiction unless $d(p, q) = 0$. Hence if a fixed point exists, it is unique. Thus it remains to proof the existence.
+
+Note we have 
+$d(f^2x, f^2y) \leq \lambda d(fx, fy) \leq \lambda^2d(x,y)$, by induction, we have $d(f^kx, f^ky) \leq \lambda^k d(x,y)$ for $k \geq 1$. Given $x \in \mathcal{X}$ set $a_n \coloneqq f^n(x)$, We have for natural number $m > n$:
+\begin{align*}
+&d(a_m, a_n) \leq d(a_m, a_{m-1}) + ... + d(a_{n+2}, a_{n+1} + d(a_{n+1}, a_n))\\
+&=d(f^m x, f^{m-1}x) + ... + d(f^{n+2}x, f^{n+1}x) + d(f^{n+1}x, f^{n}x)\\
+&\leq\lambda^{m-1}d(fx, x) + ... + \lambda_{n+1}d(fx, x) + \lambda^n d(fx, x)\\
+&=[\lambda^{m-1}+...+\lambda^n]d(fx,x)\\
+&=\lambda^n(\sum_{i=0}^{m-n-1}\lambda^{i})d(fx,x)\\
+&\leq \lambda^n(\sum_{i=0}^{\infty}\lambda^i)d(fx,x)\\
+&=\lambda^n \dfrac{1}{1-\lambda}d(fx,x) \hspace{1cm} \text{$\lambda \in (0,1)$}
+\end{align*}
+Since we have $\lambda < 1$ we could make the RHS to be arbitrary small by making n sufficiently large.
+
+Obviously, the sequence $(a_n)_{n=0}^{\infty}$ is cauchy. Since $\mathcal{X}$ is complete this cauchy converges to $x^{*} \in \mathcal{X}$, that is 
+\begin{align*}
+x^* = \lim_{n \rightarrow \infty}f^n(x)
+\end{align*}
+By the property of limit that we can have
+\begin{align*}
+x^{*} = \lim_{n \rightarrow \infty}f^n(x) = \lim_{n \rightarrow \infty}f^{n+1}(x) = f(x^{*})
+\end{align*}
+So $x^*$ is a fixed point.
+
+\end{proof}
+
+\section{Q-learning}
+We denote MDP as tuple $(\mathcal{X}, \mathcal{A}, P, r)$,
+where
+\begin{itemize}
+\item $\mathcal{X}$ is finite state space
+\item $\mathcal{A}$ is finite action space
+\item $P$ is transition probabilities
+\item $r: \mathcal{X} \times \mathcal{A} \times \mathcal{X} \rightarrow \mathbb{R}$ represents the reward function
+\end{itemize}
+We also have a constant $\gamma \in (0, 1]$.
+By the bellman update, we have
+\begin{align*}
+Q^{*}(x,a) = \sum_{y}P_{a}(x, y)[r(x,a,y) + \gamma V^{*}(y)]
+\end{align*}
+Based on that, we can define the Q-learning update.
+\begin{theo}[Bellman Update]
+The optimal $Q$-function is a fixed point of a contraction operator $\mathbf{H}$, defined for a generic function $q: \mathcal{X} \times \mathcal{A} \rightarrow \mathbb{R}$ as
+\begin{align*}
+(\mathbf{H}q)(x,a) = \sum_{y}P_{a}(x, y)[r(x, a, y) + \gamma \max_{b \in \mathcal{A}}q(y, b)]
+\end{align*}
+\end{theo}
+We first prove that the operator is a contraction in the sup-norm.
+\begin{align*}
+||\mathbf{H}q_1 - \mathbf{H}q_2||_{\infty}\leq \gamma ||q_1-q_2||_{\infty}
+\end{align*}
+
+\begin{proof}
+\begin{equation}
+\begin{array}{l}{\left\|\mathbf{H} q_{1}-\mathbf{H} q_{2}\right\|_{\infty}=} \\ {=\max _{x, a}\left|\sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y)\left[r(x, a, y)+\gamma \max _{b \in \mathcal{A}} q_{1}(y, b)-r(x, a, y)+\gamma \max _{b \in \mathcal{A}} q_{2}(y, b)\right]\right|=} \\ {=\max _{x, a} \gamma\left|\sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y)\left[\max _{b \in \mathcal{A}} q_{1}(y, b)-\max _{b \in \mathcal{A}} q_{2}(y, b)\right]\right| \leq} \\ {=\max _{x, a} \gamma \sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y) |\max _{b \in \mathcal{A}} q_{1}(y, b)-\max _{b \in \mathcal{A}} q_{2}(y, b) | \leq} \\ {=\max _{x, a} \gamma \sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y)\max_{z,b} | q_{1}(z, b)-q_{2}(z, b) |} \\ {=\max _{x, a} \gamma \sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y)\left\|q_{1}-q_{2}\right\|_{\infty}} \\ {=\gamma\left\|q_{1}-q_{2}\right\|_{\infty}}\end{array}
+\end{equation}
+\end{proof}
+
+The above theorem states that if we knew the transition probability, we can directly use the update rule to find he optimal Q-function.
+
+If we do not know the transition probability, q-learning has the following update rule
+\begin{equation}
+Q_{t+1}\left(x_{t}, a_{t}\right)=Q_{t}\left(x_{t}, a_{t}\right)+\alpha_{t}\left(x_{t}, a_{t}\right)\left[r_{t}+\gamma \max _{b \in \mathcal{A}} Q_{t}\left(x_{t+1}, b\right)-Q_{t}\left(x_{t}, a_{t}\right)\right]
+\end{equation}
+
+Now, we formally give the Q-learning convergence theorem.
+
+\begin{theo}
+Given a finite MDP ($\mathcal{X},\mathcal{A}, P, r$), the Q-learning algorithm. given by the update rule
+\begin{align}
+&Q_{t+1}\left(x_{t}, a_{t}\right)=Q_{t}\left(x_{t}, a_{t}\right)+\alpha_{t}\left(x_{t}, a_{t}\right)\left[r_{t}+\gamma \max _{b \in \mathcal{A}} Q_{t}\left(x_{t+1}, b\right)-Q_{t}\left(x_{t}, a_{t}\right)\right] \hspace{1cm}\\
+&(0 \leq \alpha_{t}(x, a)<1)
+\end{align}
+converges w.p.1 to the optimal Q-function as long as
+\begin{equation}
+\sum_{t} \alpha_{t}(x, a)=\infty \quad \sum_{t} \alpha_{t}^{2}(x, a)<\infty
+\end{equation}
+for all $(x,a) \in \mathcal{X} \times \mathcal{A}$.
+\end{theo}
+
+We will apply the following theorem to help us to prove the Q-learning convergence.
+\begin{theo}
+ The random process \(\left\{\Delta_{t}\right\}\) taking values in \(\mathbb{R}^{n}\) and defined as
+$$
+\Delta_{t+1}(x)=\left(1-\alpha_{t}(x)\right) \Delta_{t}(x)+\alpha_{t}(x) F_{t}(x)
+$$
+converges to zero w.p. 1 under the following assumptions:\\
+\begin{itemize}
+\item
+$
+0 \leq \alpha_{t} \leq 1, \sum_{t} \alpha_{t}(x)=\infty \text { and } \sum_{t} \alpha_{t}^{2}(x)<\infty
+$
+\item \(\left\|\mathbb{E}\left[F_{t}(x) | \mathcal{F}_{t}\right]\right\|_{W} \leq \gamma\left\|\Delta_{t}\right\|_{W},\) with \(\gamma<1\)\\
+\item \( \operatorname{var}\left[F_{t}(x) | \mathcal{F}_{t}\right] \leq C\left(1+\left\|\Delta_{t}\right\|_{W}^{2}\right),\) for \(C>0\)
+\end{itemize}
+\end{theo}
+
+Now we are in good shape to proof the Q-learning convergence.
+\begin{proof}
+$$
+Q_{t+1}\left(x_{t}, a_{t}\right)=\left(1-\alpha_{t}\left(x_{t}, a_{t}\right)\right) Q_{t}\left(x_{t}, a_{t}\right)+\alpha_{t}\left(x_{t}, a_{t}\right)\left[r_{t}+\gamma \max _{b \in \mathcal{A}} Q_{t}\left(x_{t+1}, b\right)\right]
+$$
+Subtracting from both sides the quantity \(Q^{*}\left(x_{t}, a_{t}\right)\) and letting
+$$
+\Delta_{t}(x, a)=Q_{t}(x, a)-Q^{*}(x, a)
+$$
+yields
+$$
+\Delta_{t+1}(x_t, a_t) = \left(1-\alpha_{t}\left(x_{t}, a_{t}\right)\right)\Delta_{t}(x_t, a_t) + a_t(x_t, a_t)\left[r_{t}+\gamma \max _{b \in \mathcal{A}} Q_{t}\left(x_{t+1}, b\right)-Q^{*}\left(x_{t}, a_{t}\right)\right]
+$$
+If we write
+$$
+F_{t}(x, a)=r(x, a, X(x, a))+\gamma \max _{b \in \mathcal{A}} Q_{t}(y, b)-Q^{*}(x, a)
+$$
+where $X(x, a)$ is a random sample state from the Markov chain $(\mathcal{X}, P_a)$,
+we have
+\begin{align*} \mathbb{E}\left[F_{t}(x, a) | \mathcal{F}_{t}\right] &=\sum_{y \in \mathcal{X}} \mathrm{P}_{a}(x, y)\left[r(x, a, y)+\gamma \max _{b \in \mathcal{A}} Q_{t}(y, b)-Q^{*}(x, a)\right]=\\ &=\left(\mathbf{H} Q_{t}\right)(x, a)-Q^{*}(x, a) \end{align*}
+Using the fact that $Q^{*} = \mathbf{H}Q^{*}$,
+\begin{equation}
+\mathbb{E}\left[F_{t}(x, a) | \mathcal{F}_{t}\right]=\left(\mathbf{H} Q_{t}\right)(x, a)-\left(\mathbf{H} Q^{*}\right)(x, a)
+\end{equation}
+By applying the contradiction mapping, we have
+\begin{equation}
+\left\|\mathbb{E}\left[F_{t}(x, a) | \mathcal{F}_{t}\right]\right\|_{\infty} \leq \gamma\left\|Q_{t}-Q^{*}\right\|_{\infty}=\gamma\left\|\Delta_{t}\right\|_{\infty}
+\end{equation}
+Now we proof the bounded variance:
+\begin{equation}
+\begin{array}{l}{\operatorname{var}\left[F_{t}(x) | \mathcal{F}_{t}\right]=} \\ {=\mathbb{E}\left[\left(r(x, a, X(x, a))+\gamma \max _{b \in \mathcal{A}} Q_{t}(y, b)-Q^{*}(x, a)-\left(\mathbf{H} Q_{t}\right)(x, a)+Q^{*}(x, a)\right)^{2}\right]=} \\ {=\mathbb{E}\left[\left(r(x, a, X(x, a))+\gamma \max _{b \in \mathcal{A}} Q_{t}(y, b)-\left(\mathbf{H} Q_{t}\right)(x, a)\right)^{2}\right]=} \\ {=\operatorname{var}\left[r(x, a, X(x, a))+\gamma \max _{b \in \mathcal{A}} Q_{t}(y, b) | \mathcal{F}_{t}\right]}\end{array}
+\end{equation}
+Since $r$ is bounded, clearly verifies that 
+\begin{equation}
+\operatorname{var}\left[F_{t}(x) | \mathcal{F}_{t}\right] \leq C\left(1+\left\|\Delta_{t}\right\|_{W}^{2}\right)
+\end{equation}
+for some constance $C$.
+\end{proof}
+
+\begin{thebibliography}{99}  
+\bibitem{ref1}Jaakkola, Tommi, Michael I. Jordan, and Satinder P. Singh. "Convergence of stochastic iterative dynamic programming algorithms." Advances in neural information processing systems. 1994.  
+\bibitem{ref2}Daniel Murfet, course note  MAST30026: Metric and Hilbert spaces.  
+\bibitem{ref3}Melo, F. S. (2001). Convergence of Q-learning: A simple proof. Institute Of Systems and Robotics, Tech. Rep, 1-4..  
+
+\end{thebibliography}
+\end{document}
