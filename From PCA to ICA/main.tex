@@ -1,0 +1,396 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2019
+
+% ready for submission
+% \usepackage{neurips_2019}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2019}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+     \usepackage[final]{neurips_2019}
+
+% to avoid loading the natbib package, add option nonatbib:
+%     \usepackage[nonatbib]{neurips_2019}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+% \usepackage{amsmath} 
+\newcommand{\Mod}[1]{\ (\mathrm{mod}\ #1)}
+
+\usepackage{amsmath}              
+
+
+\title{PCA, Probabilistic PCA, Kernel PCA, ICA}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+\author{%
+ Boyang Liu \\
+  % Department of Computer Science\\
+  % Cranberry-Lemon University\\
+  % Pittsburgh, PA 15213 \\
+  % \texttt{hippo@cs.cranberry-lemon.edu} \\
+  % examples of more authors
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  Summary of PCA, PPCA, KPCA, ICA and other related approaches. Mainly based on PRML chapter 12 and FOML. We also includes some disentangled representation objective in deep learning.
+\end{abstract}
+
+\section{PCA}
+Denote our data matrix $\mathbf{X} \in \mathbb{R}^{n \times d}$, we want to find the subspace $\mathbf{Z} \in \mathbb{R}^{n \times k}$, where $k << d$, to compress the data.
+
+There are two approaches to understand PCA. The first one is maximum variance principle and the second one is minimum reconstruction loss principle.
+
+\subsection{Variance Maximization}
+We first consider the case when $k = 1$. Let $\mathbf{u}_1 \in \mathbb{R}^{k}$ be the projection vector, the variance in subspace can be written as: 
+\begin{align*}
+&\frac{1}{N} \sum_{n=1}^{N}\left\{\mathbf{u}_{1}^{\mathrm{T}} \mathbf{x}_{n}-\mathbf{u}_{1}^{\mathrm{T}} \overline{\mathbf{x}}\right\}^{2}=\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}, \\
+& \text{where } \mathbf{S}=\frac{1}{N} \sum_{n=1}^{N}\left(\mathbf{x}_{n}-\overline{\mathbf{x}}\right)\left(\mathbf{x}_{n}-\overline{\mathbf{x}}\right)^{\mathrm{T}},\\
+&\overline{\mathbf{x}}=\frac{1}{N} \sum_{n=1}^{N} \mathbf{x}_{n}.
+\end{align*}
+
+The problem becomes to:
+\begin{align*}
+\max_{\mathbf{u}_1}\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}
+\end{align*}
+The above optimization problem is ill posed since we can easily set $\mathbf{u}_1$ to be infinitely large or small to make the objective not upper bounded. Notice we only care about the direction of $\mathbf{u}_1$, we can constrain $\mathbf{u}_1$ to be unit length. Then, we have:
+\begin{align*}
+\max_{\mathbf{u}_1^{T}\mathbf{u}_1=1}\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}
+\end{align*}
+Introducing Lagrangian multiplier, and take the derivative w.r.t. $\mathbf{u}_1$, we have:
+\begin{align*}
+&\max_{\mathbf{u, \lambda_1}}\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}+\lambda_{1}\left(1-\mathbf{u}_{1}^{\mathrm{T}} \mathbf{u}_{1}\right)\\
+&\mathbf{S u}_{1}=\lambda_{1} \mathbf{u}_{1}\\
+&\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}=\lambda_{1}
+\end{align*}
+Noticing $\mathbf{S u}_{1}=\lambda_{1} \mathbf{u}_{1}$ indicates that the largest value of variance is taken when $\lambda_1$ is the eigenvalue of $\mathbf{S}$ while $\mathbf{u}_1$ is the corresponding eigenvector, and $\mathbf{u}_{1}^{\mathrm{T}} \mathbf{S} \mathbf{u}_{1}$ indicates that $\lambda_1$ should be the largest eigenvalue.
+
+For the case $k = 1$, note every time, we are finding the orthogonal subspace, which requires that $\mathbf{u}_1$ and $\mathbf{u}_2$ be orthogonal to each other, which has the form $\mathbf{u}_1^{T}\mathbf{u}_2 = 1$. Add this constrain and follow the similar rule, we can get that $\mathbf{u}_2$ is the the eigenvector of second largest eigenvalue of centered sample matrix. When $k > 2$, it can be easily proofed by induction.
+
+\subsection{Minimum Reconstruction Error} 
+Let $\mathbf{X}$ be a mean-centered data matrix, $\mathcal{P}_{k}$as the set of N-dimensional rank-k orthogonal projection matrix. PCA tries to seek the projection matrix, such that after projection and inverse-projection, the reconstruction error is minimum. Consider the following optimization problem (here $\mathbf{X}\in \mathbb{R}^{d \times n}$):
+\begin{align*}
+\min _{\mathbf{P} \in \mathcal{P}_{k}}\|\mathbf{P} \mathbf{X}-\mathbf{X}\|_{F}^{2},
+\end{align*}
+where $\mathcal{P}_{k}  = \mathbf{U_k}\mathbf{U_k}^{T}$, and $\mathbf{U_k} \in \mathbb{R}^{d \times k}$. After we solve this optimization problem, the subspace representation is $\mathbf{Y}=\mathbf{U}_{k}^{\top} \mathbf{X}$. 
+
+The above optimization problem can be formalized as following
+\begin{align*}
+\begin{aligned}\|\mathbf{P} \mathbf{X}-\mathbf{X}\|_{F}^{2} &=\operatorname{Tr}\left[(\mathbf{P} \mathbf{X}-\mathbf{X})^{\top}(\mathbf{P} \mathbf{X}-\mathbf{X})\right]=\operatorname{Tr}\left[\mathbf{X}^{\top} \mathbf{P}^{2} \mathbf{X}-2 \mathbf{X}^{\top} \mathbf{P} \mathbf{X}+\mathbf{X}^{\top} \mathbf{X}\right] \\ &=-\operatorname{Tr}\left[\mathbf{X}^{\top} \mathbf{P} \mathbf{X}\right]+\operatorname{Tr}\left[\mathbf{X}^{\top} \mathbf{X}\right] \end{aligned}
+\end{align*},
+The above derivation use the fact that $\mathbf{P}$ is orthogonal matrix and projection matrix. ($\mathbf{P}^{T}\mathbf{P}=\mathbf{I}$, $\mathbf{PP} = \mathbf{P}$).
+
+Remove the constant part, we have:
+\begin{align*}
+\underset{\mathbf{P} \in \mathcal{P}_{k}}{\operatorname{argmin}}\|\mathbf{P} \mathbf{X}-\mathbf{X}\|_{F}^{2}=\underset{\mathbf{P} \in \mathcal{P}_{k}}{\operatorname{argmax}} \operatorname{Tr}\left[\mathbf{X}^{\top} \mathbf{P X}\right],
+\end{align*}
+By the constrain $\mathcal{P}_{k}  = \mathbf{U_k}\mathbf{U_k}^{T}$, we get:
+\begin{align*}
+\operatorname{Tr}\left[\mathbf{X}^{\top} \mathbf{P X}\right]=\operatorname{Tr}\left[\mathbf{U}^{\top} \mathbf{X} \mathbf{X}^{\top} \mathbf{U}\right]=\sum_{i=1}^{k} \mathbf{u}_{i}^{\top} \mathbf{X} \mathbf{X}^{\top} \mathbf{u}_{i}.
+\end{align*}
+This form is the same as maximize the variance and thus we can get the same conclusion.
+
+\section{Probabilistic PCA}
+Probabilistic PCA (PPCA) provides the probabilistic view of PCA. It is more fast the PCA, and can be used when data contains missing value (EM algorithm).
+
+Assumption of PPCA:
+\begin{align*}
+&p(\mathbf{z})=\mathcal{N}(\mathbf{z} | \mathbf{0}, \mathbf{I})\\
+&\mathbf{x}=\mathbf{W} \mathbf{z}+\boldsymbol{\mu}+\boldsymbol{\epsilon}\\
+&p(\boldsymbol{\epsilon})=\mathcal{N}\left(\mathbf{0}, \sigma^2\mathbf{I}\right)
+\end{align*}
+
+\subsection{MLE for PPCA}
+Derive the distribution of $\mathbf{x}$ by the above assumption, we get
+\begin{align*}
+&p(\mathbf{x})=\mathcal{N}(\mathbf{x} | \boldsymbol{\mu}, \mathbf{C})\\
+&\mathbf{C}=\mathbf{W} \mathbf{W}^{\mathrm{T}}+\sigma^{2} \mathbf{I}
+\end{align*}
+Then, we want to maximize the likelihood function of $\mathbf{x}$ w.r.t $\mathbf{\mu}, \mathbf{\mathbf{W}}, \mathbf{\sigma}$.
+
+The log-likelihood of $\mathbf{X}$ is
+\begin{align*}
+\begin{array}{l}{\ln p\left(\mathbf{X} | \boldsymbol{\mu}, \mathbf{W}, \sigma^{2}\right)=\sum_{n=1}^{N} \ln p\left(\mathbf{x}_{n} | \mathbf{W}, \boldsymbol{\mu}, \sigma^{2}\right)} \\ {\quad=-\frac{N D}{2} \ln (2 \pi)-\frac{N}{2} \ln |\mathbf{C}|-\frac{1}{2} \sum_{n=1}^{N}\left(\mathbf{x}_{n}-\boldsymbol{\mu}\right)^{\mathrm{T}} \mathbf{C}^{-1}\left(\mathbf{x}_{n}-\boldsymbol{\mu}\right)}\end{array}
+\end{align*}
+$\mathbf{\mu}$ has the closed-form solution as sample mean. Substitute $\mathbf{\mu} = \dfrac{1}{n}\sum_{i}\mathbf{x}_i$ back to the above likelihood function, we have:
+\begin{align*}
+\ln p\left(\mathbf{X} | \mathbf{W}, \boldsymbol{\mu}, \sigma^{2}\right)=-\frac{N}{2}\left\{D \ln (2 \pi)+\ln |\mathbf{C}|+\operatorname{Tr}\left(\mathbf{C}^{-1} \mathbf{S}\right)\right\}
+\end{align*}
+Then, we take derivative w.r.t $\mathbf{W}$ and $\mathbf{\sigma}$, we can get the closed-form solution as follows:
+
+\begin{align*}
+&\mathbf{W}_{\mathrm{ML}}=\mathbf{U}_{M}\left(\mathbf{L}_{M}-\sigma^{2} \mathbf{I}\right)^{1 / 2} \mathbf{R}\\
+&\sigma_{\mathrm{ML}}^{2}=\frac{1}{D-M} \sum_{i=M+1}^{D} \lambda_{i}
+\end{align*}
+where $\mathbf{U}_{M}$ is a $D \times M$ matrix whose columns are given by any subset (of size M) of the eigenvectors of the data covariance matrix $\mathbf{S}$, the $M \times M$ diagonal matrix $\mathbf{L}_{M}$ has elements given by the corresponding eigenvalues $\lambda_i$, and $\mathbf{R}$ is an arbitrary M x M orthogonal matrix. \\
+Furthermore, Tipping and Bishop (1999b) showed that the maximum of the likelihood function is obtained when the M eigenvectors are chosen to be those whose eigenvalues are the M largest (all other solutions being saddle points).
+
+\subsection{EM for PPCA}
+Note $\mathbf{Z}$ is latent variable, we can directly borrow EM to optimize it. The complete data log likelihood function is:
+\begin{equation*}
+\ln p\left(\mathbf{X}, \mathbf{Z} | \boldsymbol{\mu}, \mathbf{W}, \sigma^{2}\right)=\sum_{n=1}^{N}\left\{\ln p\left(\mathbf{x}_{n} | \mathbf{z}_{n}\right)+\ln p\left(\mathbf{z}_{n}\right)\right\}
+\end{equation*}
+Initialize the $\mathbf{W}$, $\sigma$
+E step: (take expectation over the latent variable):
+\begin{equation*}
+\begin{array}{l}{\mathbb{E}\left[\ln p\left(\mathbf{X}, \mathbf{Z} | \boldsymbol{\mu}, \mathbf{W}, \sigma^{2}\right)\right]=-\sum_{n=1}^{N}\left\{\frac{D}{2} \ln \left(2 \pi \sigma^{2}\right)+\frac{1}{2} \operatorname{Tr}\left(\mathbb{E}\left[\mathbf{z}_{n} \mathbf{z}_{n}^{\mathrm{T}}\right]\right)\right.} \\ {+\frac{1}{2 \sigma^{2}}\left\|\mathbf{x}_{n}-\boldsymbol{\mu}\right\|^{2}-\frac{1}{\sigma^{2}} \mathbb{E}\left[\mathbf{z}_{n}\right]^{\mathrm{T}} \mathbf{W}^{\mathrm{T}}\left(\mathbf{x}_{n}-\boldsymbol{\mu}\right)} \\ {+\frac{1}{2 \sigma^{2}} \operatorname{Tr}\left(\mathbb{E}\left[\mathbf{z}_{n} \mathbf{z}_{n}^{\mathrm{T}}\right] \mathbf{W}^{\mathrm{T}} \mathbf{W}\right) \}}\end{array}
+\end{equation*}
+The expectation of $\mathbf{z}$ given $\mathbf{W}$, $\sigma$ are
+\begin{equation}
+\begin{aligned} \mathbb{E}\left[\mathbf{z}_{n}\right] &=\mathbf{M}^{-1} \mathbf{W}^{\mathrm{T}}\left(\mathbf{x}_{n}-\overline{\mathbf{x}}\right) \\ \mathbb{E}\left[\mathbf{z}_{n} \mathbf{z}_{n}^{\mathrm{T}}\right] &=\sigma^{2} \mathbf{M}^{-1}+\mathbb{E}\left[\mathbf{z}_{n}\right] \mathbb{E}\left[\mathbf{z}_{n}\right]^{\mathrm{T}} \end{aligned}
+\end{equation}
+M step: maximize the likelihood respect to $\mathbf{W}$ and $\sigma$
+\begin{equation}
+\begin{aligned} \mathbf{W}_{\text { new }} &=\left[\sum_{n=1}^{N}\left(\mathbf{x}_{n}-\overline{\mathbf{x}}\right) \mathbb{E}\left[\mathbf{z}_{n}\right]^{\mathrm{T}}\right]\left[\sum_{n=1}^{N} \mathbb{E}\left[\mathbf{z}_{n} \mathbf{z}_{n}^{\mathrm{T}}\right]\right]^{-1} \\ \sigma_{\mathrm{new}}^{2}=& \frac{1}{N D} \sum_{n=1}^{N}\left\{\left\|\mathbf{x}_{n}-\overline{\mathbf{x}}\right\|^{2}-2 \mathbb{E}\left[\mathbf{z}_{n}\right]^{\mathrm{T}} \mathbf{W}_{\mathrm{new}}^{\mathrm{T}}\left(\mathbf{x}_{n}-\overline{\mathbf{x}}\right)\right.\\ &+\operatorname{Tr}\left(\mathbb{E}\left[\mathbf{z}_{n} \mathbf{z}_{n}^{\mathrm{T}}\right] \mathbf{W}_{\mathrm{new}}^{\mathrm{T}} \mathbf{W}_{\mathrm{new}}\right) \} \end{aligned}
+\end{equation}
+
+\section{Kernel PCA}
+PCA is for linear dimension reduction. Now, we use kernel to mapping data $\mathbf{X}$ to $\phi(\mathbf{X})$
+
+By the same derivative of maximum variance, we have:
+\begin{align*}
+&\mathbf{C}=\frac{1}{N} \sum_{n=1}^{N} \phi\left(\mathbf{x}_{n}\right) \phi\left(\mathbf{x}_{n}\right)^{\mathrm{T}}\\
+&\mathbf{C} \mathbf{v}_{i}=\lambda_{i} \mathbf{v}_{i}\\
+&\frac{1}{N} \sum_{n=1}^{N} \phi\left(\mathbf{x}_{n}\right)\left\{\phi\left(\mathbf{x}_{n}\right)^{\mathrm{T}} \mathbf{v}_{i}\right\}=\lambda_{i} \mathbf{v}_{i}
+\end{align*}
+The above can be rewritten as:
+\begin{align*}
+\mathbf{v}_{i}=\sum_{n=1}^{N} a_{i n} \phi\left(\mathbf{x}_{n}\right)
+\end{align*}
+We know the projection vector is a linear combination of $\phi(\mathbf{x}_n)$. Left multiply $\phi(\mathbf{X})^{T}$ on both hand side of equation, we have 
+\begin{align*}
+\frac{1}{N} \sum_{n=1}^{N} k\left(\mathbf{x}_{l}, \mathbf{x}_{n}\right) \sum_{m=1}^{m} a_{i m} k\left(\mathbf{x}_{n}, \mathbf{x}_{m}\right)=\lambda_{i} \sum_{n=1}^{N} a_{i n} k\left(\mathbf{x}_{l}, \mathbf{x}_{n}\right)
+\end{align*}
+In matrix form, the above equation is:
+\begin{equation}
+\mathbf{K}^{2} \mathbf{a}_{i}=\lambda_{i} N \mathbf{K} \mathbf{a}_{i}
+\end{equation}
+Since K is PSD kernel, then we can get the optimum $\mathbf{a}$ by solving the eigenvalue problem:
+\begin{equation}
+\mathbf{K} \mathbf{a}_{i}=\lambda_{i} N \mathbf{a}_{i}
+\end{equation}
+After we solve the eigenvalue problem, we substitute the linear span expression of projection vector, we have
+\begin{equation}
+y_{i}(\mathbf{x})=\boldsymbol{\phi}(\mathbf{x})^{\mathrm{T}} \mathbf{v}_{i}=\sum_{n=1}^{N} a_{i n} \boldsymbol{\phi}(\mathbf{x})^{\mathrm{T}} \boldsymbol{\phi}\left(\mathbf{x}_{n}\right)=\sum_{n=1}^{N} a_{i n} k\left(\mathbf{x}, \mathbf{x}_{n}\right)
+\end{equation}
+
+However, the above derivation assumes the high dimensional projected data has zero mean. We need to calibrate this. Suppose the mean centered high dimensional data is 
+\begin{equation}
+\widetilde{\phi}\left(\mathbf{x}_{n}\right)=\phi\left(\mathbf{x}_{n}\right)-\frac{1}{N} \sum_{l=1}^{N} \phi\left(\mathbf{x}_{l}\right)
+\end{equation}
+Then, we can compute the kernel of centered kernel feature:
+\begin{equation}
+\begin{aligned} \widetilde{K}_{n m}=& \widetilde{\phi}\left(\mathbf{x}_{n}\right)^{\mathrm{T}} \widetilde{\phi}\left(\mathbf{x}_{m}\right) \\=& \phi\left(\mathbf{x}_{n}\right)^{\mathrm{T}} \boldsymbol{\phi}\left(\mathbf{x}_{m}\right)-\frac{1}{N} \sum_{l=1}^{N} \boldsymbol{\phi}\left(\mathbf{x}_{n}\right)^{\mathrm{T}} \boldsymbol{\phi}\left(\mathbf{x}_{l}\right) \\ &-\frac{1}{N} \sum_{l=1}^{N} \boldsymbol{\phi}\left(\mathbf{x}_{l}\right)^{\mathrm{T}} \boldsymbol{\phi}\left(\mathbf{x}_{m}\right)+\frac{1}{N^{2}} \sum_{j=1}^{N} \sum_{l=1}^{N} \boldsymbol{\phi}\left(\mathbf{x}_{j}\right)^{\mathrm{T}} \boldsymbol{\phi}\left(\mathbf{x}_{l}\right) \\=& k\left(\mathbf{x}_{n}, \mathbf{x}_{m}\right)-\frac{1}{N} \sum_{l=1}^{N} k\left(\mathbf{x}_{l}, \mathbf{x}_{m}\right)-\frac{1}{N} \sum_{l=1}^{N} k\left(\mathbf{x}_{n}, \mathbf{x}_{l}\right)+\frac{1}{N^{2}} \sum_{j=1}^{N} \sum_{l=1}^{N} k\left(\mathbf{x}_{j}, \mathbf{x}_{l}\right) \end{aligned}
+\end{equation}
+Matrix form of mean centered kernel is:
+\begin{equation}
+\tilde{\mathbf{K}}=\mathbf{K}-\mathbf{1}_{N} \mathbf{K}-\mathbf{K} \mathbf{1}_{N}+\mathbf{1}_{N} \mathbf{K} \mathbf{1}_{N}
+\end{equation}
+
+\section{Independent Component Analysis}
+\begin{itemize}
+  \item ICA is a linear method.
+ \item ICA tries to recover the independent components rather than orthogonal components (minimize the mutual information).
+\item ICA will fail when more than one subspace is Gaussian
+\end{itemize}
+\subsection{Minimize the Mutual Information}
+\begin{equation}
+\begin{array}{l}{l\left(\left\{\mathbf{y}_{1}, \mathbf{y}_{2}, \ldots, \mathbf{y}_{d}\right\}\right)} \\ {=\sum_{i=1}^{d} H\left(\mathbf{y}_{i}\right)-H\left(\mathbf{y}_{1}, \mathbf{y}_{2}, \ldots, \mathbf{y}_{d}\right)} \\ {H\left(\mathbf{y}_{1}, \mathbf{y}_{2}, \ldots, \mathbf{y}_{d}\right)=H(\mathbf{X} \mathbf{W})=H\left(\mathbf{x}_{1}, \mathbf{x}_{2}, \ldots, \mathbf{x}_{d}\right)+\log \operatorname{det}(\mathbf{W})}\end{array}
+\end{equation}
+The MI can be rewritten as:
+\begin{equation}
+\begin{array}{l}{l\left(\mathbf{y}_{1}, \mathbf{y}_{2}, \ldots, \mathbf{y}_{d}\right)} \\ {=\sum_{i=1}^{n} H\left(y_{i}\right)-H\left(\mathbf{x}_{1}, x_{2}, \ldots, \mathbf{x}_{d}\right)-\log \operatorname{det}(W)}\end{array}
+\end{equation}
+Assume y to be unit variance
+\begin{equation}
+\begin{array}{l}{E\left(\mathbf{y}^{T} \mathbf{y}\right)=\mathbf{W} E\left\{\mathbf{x} \mathbf{x}^{\mathbf{\top}}\right\} \mathbf{W}^{T}==\mathbf{I}} \\ {\operatorname{det}(\mathbf{I})=1=\operatorname{det}(\mathbf{W})\left(\operatorname{det} E\left\{\mathbf{x} \mathbf{x}^{\mathbf{T}}\right\}\right) \operatorname{det}\left(\mathbf{W}^{T}\right)}\end{array}
+\end{equation}
+This indicates $det(W)$ is a constant. Now the MI can be written as
+\begin{equation}
+\begin{array}{l}{l\left(\mathbf{y}_{1}, \mathbf{y}_{2}, \ldots, \mathbf{y}_{d}\right)} \\ {=\sum_{i=1}^{n} H\left(y_{i}\right)-H\left(\mathbf{x}_{1}, \mathbf{x}_{2}, \ldots, \mathbf{x}_{d}\right)}\end{array}
+\end{equation}
+Maximize the non-gaussianity can achieve ICA.
+
+\subsection{Non-Gaussianity Estimation}
+We will introduce a few metric for evaluating the non-gaussianity.
+\subsubsection{Central Limit Theorem}
+\begin{itemize}
+\item Distribution of a sum of independent random variables tends toward a Gaussian distribution
+\item Sum of several independent random variables usually has a distribution that is closer to gaussian than any of the original random variables
+\end{itemize}
+\subsubsection{Kurtosis}
+Kurtosis is defined by:
+\begin{equation}
+\text { kurt }(\mathrm{y})=\mathrm{E}\left\{\mathrm{y}^{4}\right\}-3\left(\mathrm{E}\left\{\mathrm{y}^{2}\right\}\right)^{2}
+\end{equation}
+When we constrain the $\mathrm{y}$ has zero mean and unit variance, the kurtosis has the form$
+E\left\{y^{4}\right\}-3
+$.
+Kurtosis measuares the degree of peakdness of a distribution and it is zero only for Gaussian distribution. However, it is sensitive to outliers due to the fourth moment.
+
+\subsubsection{Negentropy}
+The entropy of a random variable is defined as
+\begin{equation}
+H(y)=-\int_{-\infty}^{\infty} p(y) \log p(y) d y=-E\left\{\log p_{i}(y)\right\}
+\end{equation}
+Denote $y_{G}$ as the entropy of gaussian variable, the negentropy is defined as
+$$
+J(y)=H\left(y_{G}\right)-H(y) \geq 0
+$$
+It is hard to get $J(y)$ since we do not know the density distribution $p(y)$.
+
+\subsubsection{Approximation to Negentropy}
+Some approximation:
+\begin{align*}
+&J(y) \approx \frac{1}{12} E\left\{y^{3}\right\}^{2}+\frac{1}{48} k u r t(y)^{2} \hspace{1cm}\text{not robust}\\
+&J(y) \approx \sum_{i=1}^{p} k_{i}\left[E\left\{G_{i}(y)\right\}-E\left\{G_{i}(g)\right\}\right]^{2} \hspace{1cm}\text{better approximation},
+\end{align*}
+where $k_i$ are some positive constants, $y$ is assumed to have zero mean and unit variance, and $g$ is a Gaussian variable with zero mean and unit variance. $G_i$ are some non-quadratic functions such as 
+\begin{equation}
+G_{1}(y)=\frac{1}{a} \log \cosh (a y), \quad G_{2}(y)=-\exp \left(-y^{2} / 2\right),
+\end{equation}
+where $1 \leq a \leq 2$ is some suitable constant. Although this approximation may no be accurate, it is always greater than zero except when $x$ is Gaussian. 
+
+\subsubsection{ICA as Projection Pursuit (FastICA)}
+We want to minimize:
+\begin{equation}
+\sum_{i} E\left\{G\left(y_{i}\right)\right\}=\sum_{i} E\left\{G\left(\mathbf{w}_{i}^{T} \mathbf{x}\right)\right\},
+\end{equation}
+where $w$ is a rotation matrix. Using Lagrangian Multiplier, we have:
+\begin{equation}
+O(\mathbf{w})=E\left\{G\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta\left(\mathbf{w}^{T} \mathbf{w}-1\right) / 2
+\end{equation}
+Take derivative respect to $w$:
+\begin{equation}
+F(\mathbf{w}) =\frac{\partial O(\mathbf{w})}{\partial \mathbf{w}}=E\left\{\mathbf{x} g\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta \mathbf{w}=0
+\end{equation}
+We can use newton method to optimize it. The Hessian is 
+\begin{equation}
+J_{F}(\mathbf{w})=\frac{\partial F}{\partial \mathbf{w}}=E\left\{\mathbf{x} \mathbf{x}^{T} g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta \mathbf{I}
+\end{equation}
+The first term can be approximated as 
+\begin{equation}
+E\left\{\mathbf{x} \mathbf{x}^{T} g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\} \approx E\left\{\mathbf{x} \mathbf{x}^{T}\right\} E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}=E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\} \mathbf{I}
+\end{equation}
+Then, the Hessian becomes diagonal, and the inverse is easy to calculate.
+\begin{equation}
+J_{F}(\mathbf{w})=\left[E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta\right] \mathbf{I}
+\end{equation}
+The Newton iteration becomes:
+\begin{equation}
+\mathbf{w} \Leftarrow \mathbf{w}-\frac{1}{E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta}\left[E\left\{\mathbf{x} g\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-\beta \mathbf{w}\right]
+\end{equation}
+Multiplying both sides by the scaler $
+\beta-E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}
+$, we have
+\begin{equation}
+\mathbf{w} \Leftarrow E\left\{\mathbf{x} g\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\} \mathbf{w}
+\end{equation}
+We are just scale the parameters, we can renormalizes it.
+The projection pursuit for ICA can be summarized as follows:
+\begin{itemize}
+\item Choose initial random guess for $w$
+\item Iterate:
+\begin{equation*}
+\mathbf{w} \Leftarrow E\left\{\mathbf{x} g\left(\mathbf{w}^{T} \mathbf{x}\right)\right\}-E\left\{g^{\prime}\left(\mathbf{w}^{T} \mathbf{x}\right)\right\} \mathbf{w}
+\end{equation*}
+\item Normalize
+\begin{equation*}
+\mathbf{w} \Leftarrow \mathbf{w} /\|\mathbf{w}\|
+\end{equation*}
+\item If not converged, go back to step 2
+
+Estimate the $2^{nd}$ ICA component similarity, just add the orthogonal constraint.
+
+\end{itemize}
+
+\subsubsection{MLE for ICA}
+Another view for deriving ICA is from MLE.
+The following equation always holds.
+\begin{equation}
+p_{x}(x)=p_{s}(W x) \cdot|W|
+\end{equation}
+Since we assume the source are independent:
+\begin{equation}
+p(s)=\prod_{i=1}^{n} p_{s}\left(s_{i}\right)
+\end{equation}
+So the likelihood for our observation is
+\begin{equation}
+p(x)=\prod_{i=1}^{n} p_{s}\left(w_{i}^{T} x\right) \cdot|W|
+\end{equation}
+We need to assume the probability distribution of the sources, and remember we cannot choose Gaussian. A reasonable CDF is the sigmoid function $g(s)=1 /\left(1+e^{-s}\right)$, and the pdf is $p_{s}(s)=g^{\prime}(s)$
+The log likelihood is:
+\begin{equation}
+\ell(W)=\sum_{i=1}^{m}\left(\sum_{j=1}^{n} \log g^{\prime}\left(w_{j}^{T} x^{(i)}\right)+\log |W|\right)
+\end{equation},
+Applying gradient descent or SGD, we can get the update rule. ($\nabla_{W}|W|=|W|\left(W^{-1}\right)^{T}$)
+
+\section{Non-linear ICA}
+\begin{itemize}
+\item It is an open problem
+\item It is largely related to Disentangling Representation
+\item Beta VAE, Factor VAE
+\end{itemize}
+
+\subsection{VAE}
+\begin{equation}
+\begin{array}{l}{K L(q(z) \| p(z | x))=\int q(z) \log \frac{q(z)}{p(z | x)} d z} \\ {=\int q(z)[\log q(z)-\log p(z | X)] d z} \\ {=\int q(z)[\log q(z)-\log p(X | z)-\log p(z)] d z+\log p(X)} \\ {=\int q(z) \log p(X | z) d z-K L(q(z) \| p(z))+\log p(X)} \\ {<=\int q(z) \log p(X | z) d z-K L(q(z) \| p(z))}\end{array}
+\end{equation}
+\subsection{Beta-VAE}
+\begin{equation}
+\begin{array}{l}{\max _{\theta} \int p(x | z) d z} \\ {\text {s.t.KL}\left(q_{\phi}(z | x) \| p(z)\right)<\epsilon}\end{array}
+\end{equation}
+Objective of Beta-VAE
+\begin{equation}
+\mathcal{F}(\theta, \phi, \beta ; \mathbf{x}, \mathbf{z})=\mathbb{E}_{q_{\phi}(\mathbf{z} | \mathbf{x})}\left[\log p_{\theta}(\mathbf{x} | \mathbf{z})\right]-\beta\left(D_{K L}\left(q_{\phi}(\mathbf{z} | \mathbf{x}) \| p(\mathbf{z})\right)-\epsilon\right)
+\end{equation}
+\subsection{Factor-VAE}
+Objective:
+\begin{equation}
+\mathbb{E}_{p(\mathbf{x})}\left[\mathbb{E}_{q_{\phi}(\mathbf{z} | \mathbf{x})}\left[\log p_{\theta}(\mathbf{x} | \mathbf{z})\right]-D_{\mathrm{KL}}\left(q_{\phi}(\mathbf{z} | \mathbf{x}) \| p(\mathbf{z})\right)\right]-\gamma D_{\mathrm{KL}}\left(q(\mathbf{z}) \| \prod_{j=1}^{d} q\left(\mathbf{z}_{j}\right)\right)
+\end{equation}
+
+
+\end{document}
