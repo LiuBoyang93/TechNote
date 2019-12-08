@@ -53,15 +53,15 @@ An counter example would be rational numbers. The rational numbers $\mathcal{Q}$
 
 In Q-learning, we are dealing with real number, and real number is a complete metric space (proof omitted). Thus, we can full utilize the properties of complete metric space.
 \section{Banach Fixed Point Theorem}
-Banach fixed point theorem is also known as $\textit{contraction mapping theorem}$ or $\textit{contractive mapping theorem}$. It plays the central role in Q learning. We will first introduce the theorem and the definition of contradiction mapping.
+Banach fixed point theorem is also known as $\textit{contraction mapping theorem}$ or $\textit{contractive mapping theorem}$. It plays the central role in Q learning. We will first introduce the theorem and the definition of contraction mapping.
 
-\begin{defn}[Contradiction Mapping]
+\begin{defn}[Contraction Mapping]
 Let $(\mathcal{X}, d)$ to be a metric space, a function $f: \mathcal{X} \rightarrow \mathcal{X}$ is called a contraction if there exists $\lambda \in (0,1)$ such that
 \begin{align*}
 d(fx, fx^{'}) \leq \lambda d(x, x^{'}) \hspace{1cm} \forall x, x^{'} \in \mathcal{X}
 \end{align*}
 \end{defn}
-Clearly, the contradiction function is continuous since the smallest $\lambda$ is Lipschitz constant of $f$. 
+Clearly, the contraction function is continuous since the smallest $\lambda$ is Lipschitz constant of $f$. 
 
 \begin{theo}[Banach Fixed Point Theorem]
 Let $(\mathcal{X}, d)$ be a non-empty complete metric space with a contraction mapping $f: \mathcal{X} \rightarrow \mathcal{X}$. Then $f$ admits a unique fixed point $x^{*}$ in $\mathcal{X}$ (i.e. $f(x^{*}) = x^{*}$). Furthermore, $x^*$ can be found as follows: start with an arbitrary element $x_0$ in $\mathcal{X}$, and define a sequence ${x_n}$ by $x_n = f(x_{n-1})$, then $x_n \rightarrow x^{*}$
@@ -196,7 +196,7 @@ Using the fact that $Q^{*} = \mathbf{H}Q^{*}$,
 \begin{equation}
 \mathbb{E}\left[F_{t}(x, a) | \mathcal{F}_{t}\right]=\left(\mathbf{H} Q_{t}\right)(x, a)-\left(\mathbf{H} Q^{*}\right)(x, a)
 \end{equation}
-By applying the contradiction mapping, we have
+By applying the contraction mapping, we have
 \begin{equation}
 \left\|\mathbb{E}\left[F_{t}(x, a) | \mathcal{F}_{t}\right]\right\|_{\infty} \leq \gamma\left\|Q_{t}-Q^{*}\right\|_{\infty}=\gamma\left\|\Delta_{t}\right\|_{\infty}
 \end{equation}
