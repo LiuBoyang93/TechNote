@@ -1,0 +1,288 @@
+\documentclass[a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{algorithmicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,epsfig,epstopdf,titling,url,array}
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\newtheorem{theo}{Theorem}[section]
+\newtheorem{conj}{Conjecture}[section]
+\newtheorem{exmp}{Example}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{property}{Property}[section]
+\usepackage{hyperref}
+
+\title{DICE: Dual Stationary Distribution Correction Estimation}
+\author{Boyang Liu}
+\providecommand{\keywords}[1]{\textbf{\textit{keywords: }} #1}
+\date{\today}
+\begin{document}
+\maketitle
+
+\abstract{From Fenchel Conjugate to Off-policy RL}
+
+\keywords{f-divergence, fenchel conjugate, off-policy RL}
+
+\section{Introduction}
+For many scenarios in machine learning, it is important to estimate two distribution difference. One typical metric to evaluate two distribution discrepancy is KL-divergence as following:
+\begin{equation}
+D_{K L}(p(x) \| q(x))=\sum_{x \in X} p(x) \ln \frac{p(x)}{q(x)}
+\end{equation}
+KL-divergence is very hard to estimate in high dimension since it needs to estimate the density function of both distribution $p$ and $q$. In order to solve this problem, we first introduce a broad family of distribution divergence, which is called f-divergence. Later we will see how to estimate f-divergence by using convex conjugate. At last, the convex conjugate will bring a nice lower bound estimation of original distribution while the solving the lower bound does not need to explicitly estimate the density function of $p$ and $q$. Instead, the lower bound of the f-divergence only requires accessing the distribution, which will finally leads to an off-policy RL algorithm.
+
+\section{f-divergence}
+\begin{defn}[f-divergence]
+Let $P$, $Q$ are two distributions, $p(x)$, $q(x)$ are the density functions, then, the given any convex function $f$, which $f(1)=0$, the f-divergence is defined as:
+\begin{equation}
+D_{f}(P \| Q)=\int_{x} q(x) f\left(\frac{p(x)}{q(x)}\right) d x
+\end{equation}
+\end{defn}
+
+\begin{exmp}
+For KL-divergence, the $f$ is $x\log(x)$, which is a valid $f$ for f-divergence: $$
+\int_{x} p(x) \log \left(\frac{p(x)}{q(x)}\right) d x
+$$
+\end{exmp}
+
+\begin{exmp}
+For reverse KL-divergence, the $f$ is $-\log(x)$, which is a valid $f$ for f-divergence: $$
+\int_{x} q(x) \log \left(\frac{q(x)}{p(x)}\right) d x
+$$
+\end{exmp}
+
+\begin{exmp}
+For chi-square divergence, the $f$ is $(x-1)^2$, which is a valid $f$ for f-divergence: $$
+\int_{x} \frac{(p(x)-q(x))^{2}}{q(x)} d x
+$$
+\end{exmp}
+
+The reason why $f$ needs to be convex and $f(1)$ must equal to 0 is to make sure that the divergence is a positive value, and $0$ means that two distributions are equal.
+
+\begin{align}
+&D_{f}(P \| Q)=\int_{x} q(x) f\left(\frac{p(x)}{q(x)}\right) d x\\
+&\geq f\left(\int_{x} q(x) \frac{p(x)}{q(x)} d x\right)\\
+&=f(1)\\
+&=0
+\end{align}
+
+\section{Convex Conjugate}
+\begin{defn}
+The convex (fenchel) conjugate for function $f$ is:
+\begin{equation}
+f^{*}(y)=\sup _{x \in \mathrm{dom} f}\left(y^{T} x-f(x)\right)
+\end{equation}
+\end{defn}
+
+An important property of fenchel conjugate is that for any closed convex function, we have $f(x) = f^{**}(x)$. In other words, if function $f$ is convex, we have $$f(x) =\sup _{y \in \mathrm{dom} f}\left(x^{T} y-f^{*}(y)\right) $$
+
+\begin{exmp}
+For function $y=\dfrac{1}{2}x^2$, we have $f^{*}(u) = \max_{x}ux-\dfrac{1}{2}f(x^2)$, thus we have $f^{*}(u) = \dfrac{1}{2}u^2$, and $f(x) = f^{**}(x)$.
+\end{exmp}
+
+The key point is that fenchel conjugate can express a function by an optimization of its conjugate. Also, it can express some of the optimization problem to a function.
+
+\section{Revisit f-divergence}
+\begin{equation}
+\begin{aligned} D_{f}(p \| q) &=\mathbb{E}_{a \sim q}\left[f\left(\frac{p(a)}{q(a)}\right)\right] \\ &=\mathbb{E}_{a \sim q}\left[\max _{x} \frac{p(a)}{q(a)} \cdot x-f_{*}(x)\right] \\ &\geq \max _{x: A \rightarrow \mathbb{R}} \mathbb{E}_{a \sim q}\left[\frac{p(a)}{q(a)} \cdot x(a)-f_{*}(x(a))\right] \\ &=\max _{x: A \rightarrow \mathbb{R}} \mathbb{E}_{a \sim q}\left[\frac{p(a)}{q(a)} \cdot x(a)\right]-\mathbb{E}_{a \sim q}\left[f_{*}(x(a))\right] \\ &=\max _{x: A \rightarrow \mathbb{R}} \mathbb{E}_{a \sim p}[x(a)]-\mathbb{E}_{a \sim q}\left[f_{*}(x(a))\right] \end{aligned}
+\end{equation}
+
+This is nice since we do not need to estimate the density function. Notice GAN also use this trick to minimize the distribution between fake data and real data. See more details in f-gan \cite{ref1} paper.
+
+\section{Off-policy Policy Evaluation (OPE)}
+\subsection{Problem Setting}
+We would like to estimate the value function of specific policy $\pi$, but we only have access to some fixed data $
+\mathcal{D}:=\left\{\left(s^{(i)}, a^{(i)}, r^{(i)}, s^{(i) \prime}\right)\right\}_{i=1}^{N}
+$. 
+
+Mathematically, we would like to estimate the following term
+\begin{equation}
+\rho(\pi):=(1-\gamma) \cdot \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^{t} r(s, a) | s_{0} \sim \beta_{0}, a_{t} \sim \pi\left(s_{t}\right), s_{t+1} \sim T\left(s_{t}, a_{t}\right)\right],
+\end{equation}
+with the limitation that we only have access to $
+(s, a) \sim d^{\mathcal{D}}, s^{\prime} \sim T(s, a)
+$
+
+\subsection{Reduction of OPE to Density Ratio Estimation}
+We can marginalize the above equation by the state action distribution to get rid of the horizon term:
+\begin{equation}
+\rho(\pi)=\mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)],
+\end{equation}
+where $
+d^{\pi}(s, a):=(1-\gamma) \sum_{t=0}^{\infty} \gamma^{t} \cdot \operatorname{Pr}\left[s_{t}=s, a_{t}=a | s_{0} \sim \beta_{0}, \pi\right]
+$.
+By employing the importance sampling trick, we have
+\begin{equation}
+\rho(\pi)=\mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)]=\mathbb{E}_{(s, a) \sim d^{D}}\left[\frac{d^{\pi}(s, a)}{d^{\mathcal{D}}(s, a)} \cdot r(s, a)\right]
+\end{equation}
+
+Now, we can see that if we can estimate the density ratio $
+w_{\pi / \mathcal{D}}(s, a):=\frac{d^{\pi}(s, a)}{d^{\mathcal{D}}(s, a)}
+$ without interacting with the environment, we solve the OPE problem.
+
+To estimate the ratio is highly non-trival. Again, it is very hard to estimate the density if the dimension is high. More important, we cannot even access $d^{\pi}$ due to the off-policy limitation. Here is where DICE kicks in.
+
+\section{DICE}
+\subsection{Key Step 1: bridging the f-divergence and density ratio}
+By using the conjugate form of f-divergence, we have
+\begin{equation}
+-D_{f}\left(d^{\pi} \| d^{\mathcal{D}}\right)=\min _{x: \mathcal{S} \times A \rightarrow \mathbb{R}} \mathbb{E}_{(s, a) \sim d^{D}}\left[f_{*}(x(s, a))\right]-\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]
+\end{equation}
+By taking gradient w.r.t. $x$, we find the optimality conditions for $x$ is:
+\begin{equation}
+f_{*}^{\prime}(x(s, a))=w_{\pi / \mathcal{D}}(s, a):=\frac{d^{\pi}(s, a)}{d^{\mathcal{D}}(s, a)}
+\end{equation}
+Now, the road map is clearer. We optimize the conjugate function of f-divergence, then we use this function to estimate the ratio.
+However, to optimize the conjugate function form of f-divergence, we still need to access samples from $\pi$, which we cannot. We need to get rid of the second expectation $\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]$.
+
+\subsection{Key step 2: construct a new MDP by new reward}
+The DICE use change of variables to solve $\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]$.
+Recall we have
+\begin{equation}
+\rho(\pi)=\mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)],
+\end{equation}
+where $
+d^{\pi}(s, a):=(1-\gamma) \sum_{t=0}^{\infty} \gamma^{t} \cdot \operatorname{Pr}\left[s_{t}=s, a_{t}=a | s_{0} \sim \beta_{0}, \pi\right]
+$.
+Now, we see that the term $\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]$ is actually {\color{red}estimate the value function of $\pi$, but change the reward function to $x(s,a)$ instead of using $r(s,a)$}. In other words, we can use $Q$-function to estimate it by using $x$ as a reward!
+
+Thus, we define the Bellman operator of the new Q-function $\nu(s, a)$
+\begin{equation}
+\nu(s, a)=x(s, a)+\mathcal{B}_{\pi} \nu(s, a),
+\end{equation}
+where \begin{equation}
+\mathcal{B}_{\pi} \nu(s, a):=\gamma \mathbb{E}_{s^{\prime} \sim T(s, a), a^{\prime} \sim \pi\left(s^{\prime}\right)}\left[\nu\left(s^{\prime}, a^{\prime}\right)\right]
+\end{equation}.
+Remember we are going to estimate $\nu(s_0, a)|a \sim \pi(.|s_0)$, we have
+\begin{equation}
+(1-\gamma) \cdot \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right]=(1-\gamma) \cdot \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^{t} \cdot x\left(s_{t}, a_{t}\right) | \pi\right]
+\end{equation}
+
+\subsection{Key step 3: change of variables}
+Currently, we aim to solve:
+\begin{equation}
+\min _{x: S \times A \rightarrow \mathbb{R}} \mathbb{E}_{(s, a) \sim d^{\mathcal{D}}}\left[f_{*}(x(s, a))\right]-\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)],
+\end{equation}
+where we already knew that $
+f_{*}^{\prime}\left(x^{*}(s, a)\right)=w_{\pi / \mathcal{D}}(s, a)
+$ and $\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)] = (1-\gamma) \cdot \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right]$.
+
+With change of variables $\nu(s, a)=x(s, a)+\mathcal{B}_{\pi} \nu(s, a)$, we have
+\begin{equation}
+\min _{\nu: S \times A \rightarrow \mathbb{R}} \mathbb{E}_{(s, a) \sim d^{\mathcal{D}}}\left[f_{*}\left(\left(\nu-\mathcal{B}_{\pi} \nu\right)(s, a)\right)\right]-(1-\gamma) \cdot \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right].
+\end{equation}
+Now, the optimality condition becomes to 
+\begin{equation}
+f_{*}^{\prime}\left(\nu^{*}(s, a)-\mathcal{B}_{\pi} \nu^{*}(s, a)\right)=w_{\pi / \mathcal{D}}(s, a)
+\end{equation}
+
+{\color{red}In DualDICE paper, the $f$ is chosen to be $\dfrac{1}{2}x^2$, which violates the f-divergence definition.} If we ignore this point, by setting $f(x) = \dfrac{1}{2}x^2$, we have $f^* = f$. Now, the objective becomes to 
+\begin{equation}
+\min _{\nu: S \times A \rightarrow \mathbb{R}} \frac{1}{2} \mathbb{E}_{(s, a) \sim d^{\mathcal{D}}}\left[\left(\nu(s, a)-\mathcal{B}_{\pi} \nu(s, a)\right)^{2}\right]-(1-\gamma)\mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right]
+\end{equation}
+
+\subsection{Step 4: another conjugate to reduce the effect of Bellman operator}
+Directly applying the definition of convex conjugate, we have
+\begin{equation}
+\begin{aligned} \min _{\nu: S \times A \rightarrow \mathbb{R}} \max _{\zeta:A \rightarrow \mathbb{R}} J(\nu, \zeta):=\mathbb{E}_{\left(s, a, s^{\prime}\right) \sim d^{\mathcal{D}}, a^{\prime} \sim \pi\left(s^{\prime}\right)}\left[\left(\nu(s, a)-\gamma \nu\left(s^{\prime}, a^{\prime}\right)\right) \zeta(s, a)-f^{*}(\zeta(s, a))\right] \\-(1-\gamma) \mathbb{E}_{s_{0} \sim \beta, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right] \end{aligned},
+\end{equation}
+where $\zeta$ is the variable of the conjugate function.
+
+Before we have:
+\begin{equation}
+f_{*}^{\prime}\left(\nu^{*}(s, a)-\mathcal{B}_{\pi} \nu^{*}(s, a)\right)=w_{\pi / \mathcal{D}}(s, a)
+\end{equation}
+Now we have:
+\begin{equation}
+\begin{aligned} & f^{\prime}\left(\zeta^{*}(s, a)\right)=\nu^{*}(s, a)-\mathcal{B}_{\pi} \nu^{*}(s, a) \\ \Rightarrow \zeta^{*}(s, a) &=f_{*}^{\prime}\left(\nu^{*}(s, a)-\mathcal{B}_{\pi} \nu^{*}(s, a)\right)=w_{\pi / \mathcal{D}}(s, a) \end{aligned}
+\end{equation}
+Notice this step is only a trick to improve the estimation. The only difference is that the expectation term is now linear instead of quadratic. In following work of DICE (ValueDICE), this step is ignored.
+
+\section{Off-policy RL by DICE}
+The RL objective is to maximize the long term reward:
+\begin{equation}
+\max _{\pi} \mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)]
+\end{equation}
+In order to use DICE trick to make it off-policy, we add another term:
+\begin{equation}
+\max _{\pi} \mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)]-\alpha D_{f}\left(d^{\pi} \| d^{\mathcal{D}}\right)
+\end{equation}
+
+Again, apply the dual form of f-divergence:
+\begin{equation}
+\begin{array}{l}{\max _{\pi} \mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)]-\alpha D_{f}\left(d^{\pi} \| d^{\mathcal{D}}\right)} \\ {\quad=\max _{\pi} \min _{x} \mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)]-\alpha \cdot \mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]+\alpha \cdot \mathbb{E}_{(s, a) \sim d^{D}}\left[f_{*}(x(s, a))\right]}\\
+\quad=\max _{\pi} \min _{x} \mathbb{E}_{(s, a) \sim d^{\pi}}[r(s, a)-\alpha \cdot x(s, a)]+\alpha \cdot \mathbb{E}_{(s, a) \sim d^{D}}\left[f_{*}(x(s, a))\right]\end{array}
+\end{equation}
+
+Again, we could use the change of variable by constructing a new MDP.
+Let $
+\nu(s, a):=-\alpha \cdot x(s, a)+\mathcal{B}_{\pi} \nu(s, a)
+$, where\begin{equation}
+\mathcal{B}_{\pi} \nu(s, a):= r(s,a) + \gamma \mathbb{E}_{s^{\prime} \sim T(s, a), a^{\prime} \sim \pi\left(s^{\prime}\right)}\left[\nu\left(s^{\prime}, a^{\prime}\right)\right]
+\end{equation}.
+Now, objective becomes
+\begin{equation}
+\max _{\pi} \min _{\nu}(1-\gamma) \cdot \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right]+\alpha \cdot \mathbb{E}_{(s, a) \sim d^{\mathcal{D}}}\left[f_{*}\left(\frac{1}{\alpha}\left(\mathcal{B}_{\pi} \nu(s, a)-\nu(s, a)\right)\right)\right]
+\end{equation}
+Again, this is completely off-policy formulation. You may want to use the same trick (step 4) to reduce the effect of Bellman operator.
+
+Now we could analyze the minimax optimization
+$$
+\max _{\pi} \min _{\nu} J(\pi, \nu):=(1-\gamma) \cdot \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu\left(s_{0}, a_{0}\right)\right]+\alpha \cdot \mathbb{E}_{(s, a) \sim d^{D}}\left[f_{*}\left(\frac{1}{\alpha}\left(\mathcal{B}_{\pi} \nu(s, a)-\nu(s, a)\right)\right)\right]
+$$
+To have a closer look of it, let us assume we already find the optimal $nu$ function, recall we have $
+f_{*}^{\prime}\left(\frac{1}{\alpha}\left(\mathcal{B}_{\pi} \nu_{\pi}^{*}(s, a)-\nu_{\pi}^{*}(s, a)\right)\right)=f_{*}^{\prime}\left(x_{\pi}^{*}(s, a)\right)=\frac{d^{\pi}(s, a)}{d^{\mathcal{D}}(s, a)}
+$, if we take gradient to $\pi$, we can see that
+
+$$
+\begin{aligned} &\frac{\partial}{\partial \pi} J\left(\pi, \nu_{\pi}^{*}\right) \\
+&=(1-\gamma) \cdot \frac{\partial}{\partial \pi} \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu_{\pi}^{*}\left(s_{0}, a_{0}\right)\right]+\alpha \cdot \mathbb{E}_{(s, a) \sim d^{D}}\left(\left[\frac{d^{\pi}(s, a)}{d^{D}(s, a)} \frac{\partial}{\partial \pi}\left(\frac{1}{\alpha}\left(\mathcal{B}_{\pi} \nu_{\pi}^{*}(s, a)-\nu_{\pi}^{*}(s, a)\right)\right)\right]\right.\\ &=(1-\gamma) \cdot \frac{\partial}{\partial \pi} \mathbb{E}_{s_{0} \sim \beta_{0}, a_{0} \sim \pi\left(s_{0}\right)}\left[\nu_{\pi}^{*}\left(s_{0}, a_{0}\right)\right]+\gamma \cdot \mathbb{E}_{(s, a) \sim d^{\pi}}\left[\frac{\partial}{\partial \pi} \mathbb{E}_{s^{\prime} \sim T(s, a), a^{\prime} \pi\left(s^{\prime}\right)}\left[\nu_{\pi}^{*}\left(s^{\prime}, a^{\prime}\right)\right]\right] \\ &=\mathbb{E}_{(s, a) \sim d^{\pi}}[\nu(s, a) \nabla \log \pi(s, a)] \end{aligned}
+$$
+
+We can see that this is actually reward shaping and we are doing on-policy optimization on new reward.
+
+\section{ValueDice}
+The ValueDICE use DICE trick to do imitation learning.
+We knew that adversarial imitation learning tries to estimate $D_{KL}(d^{\pi}||d^{exp})$, in ValueDice paper, they use the Donsker-Varadhan representation:
+
+\begin{equation}
+-D_{\mathrm{KL}}\left(d^{\pi} \| d^{\mathrm{exp}}\right)=\min _{x: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}} \log \mathbb{E}_{(s, a) \sim d^{\mathrm{exp}}}\left[e^{x(s, a)}\right]-\mathbb{E}_{(s, a) \sim d^{\pi}}[x(s, a)]
+\end{equation}
+Similarly, we have
+\begin{equation}
+x^{*}(s, a)=\log \frac{d^{\pi}(s, a)}{d^{\exp }(s, a)}+C
+\end{equation}
+
+By change of variable, we have:
+\begin{equation}
+x(s, a)=\nu(s, a)-\mathcal{B}^{\pi} \nu(s, a)
+\end{equation}
+Now, the KL divergence reduces to:
+\begin{equation}
+-D_{\mathrm{KL}}\left(d^{\pi} \| d^{\mathrm{exp}}\right)=\min _{\nu: s \times \mathcal{A} \rightarrow \mathbb{R}}  \log \mathbb{E}_{(s, a) \sim d^{\mathrm{exp}}}\left[e^{\nu(s, a)-\mathcal{B}^{\pi} \nu(s, a)}\right]-\underset{(s, a) \sim d^{\pi}}{\mathbb{E}}\left[\nu(s, a)-\mathcal{B}^{\pi} \nu(s, a)\right]
+\end{equation}
+The second term again can be express by a new 'Q function'
+\begin{equation}
+\min _{\nu: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}} J_{\mathrm{DICE}}(\nu):=\log _{(s, a) \sim d^{exp}}\left[e^{\nu(s, a)-\mathcal{B}^{\pi} \nu(s, a)}\right]-(1-\gamma) \cdot \underset{s_{0} \sim p_{0} a_0 \sim \pi(.|s_0)}{\mathbb{E}}\left[\nu\left(s_{0}, a_{0}\right)\right]
+\end{equation}
+Everything is the same as the DICE except they use the DV representation of KL.
+
+Now, we can have the objective of ValueDICE.
+\begin{equation}
+\max _{\pi} \min _{\nu: S \times \mathcal{A} \rightarrow \mathbb{R}} J_{\mathrm{DICE}}(\pi, \nu):=\log _{(s, a) \sim d^{\mathrm{exp}}}\left[e^{\nu(s, a)-B^{*} \nu(s, a)}\right]-(1-\gamma) \cdot \underset{s_{0} \sim p_{0}(\cdot)}{\mathbb{E}}\left[\nu\left(s_{0}, a_{0}\right)\right]
+\end{equation}
+
+\begin{thebibliography}{99}  
+\bibitem{ref1}Nowozin, S., Cseke, B., \& Tomioka, R. (2016). f-gan: Training generative neural samplers using variational divergence minimization. In Advances in neural information processing systems (pp. 271-279).  
+
+\end{thebibliography}
+\end{document}
